@@ -17,6 +17,7 @@
     "@splinetool/react-spline": "^4.0.0",
     "@xyflow/react": "^12.4.4",
     "axios": "^1.8.4",
+    "framer-motion": "^12.6.5",
     "lucide-react": "^0.483.0",
     "ordonis-front-end": "file:",
     "react": "^19.0.0",

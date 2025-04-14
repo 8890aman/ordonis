@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { DndContext } from '@dnd-kit/core';
-import { useDraggable, useDroppable } from '@dnd-kit/core';
 import {
   Typography,
   Button,
@@ -24,24 +22,16 @@ import {
   DialogContent,
 } from '@material-tailwind/react';
 import { Paperclip, Eye, ChevronDown, Trash2 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 
 // Draggable Component
-export function Draggable(props) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: props.id || 'draggable',
-  });
-
+export function TaskDraggable(props) {
   const [holdTimeout, setHoldTimeout] = useState(null);
   const [isEditingProgress, setIsEditingProgress] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
-    transition: 'transform 0.2s ease, opacity 0.2s ease',
     position: 'relative',
-    opacity: isDragging ? 0.65 : 1,
-    zIndex: isDragging ? 10 : 1,
+    zIndex: 1,
   };
 
   const {
@@ -89,19 +79,6 @@ export function Draggable(props) {
     }
   };
 
-  // Adding comments to suppress ESLint warnings because these are used in the JSX
-  /* eslint-disable no-unused-vars */
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'droppable-to-do': return 'bg-gray-100 text-gray-600';
-      case 'droppable-pending': return 'bg-yellow-50 text-yellow-600';
-      case 'droppable-in-progress': return 'bg-blue-50 text-blue-600';
-      case 'droppable-done': return 'bg-green-50 text-green-600';
-      default: return 'bg-gray-100 text-gray-600';
-    }
-  };
-  /* eslint-enable no-unused-vars */
-
   const getPriorityColor = (priority) => {
     switch (priority) {
       case 'high': return 'bg-red-50';
@@ -120,8 +97,8 @@ export function Draggable(props) {
 
   return (
     <>
-      <div ref={setNodeRef} style={style} {...listeners} {...attributes} className="w-full">
-        <Card className="w-full cursor-move hover:shadow-md rounded-lg overflow-hidden border border-gray-200 transition-all duration-200 hover:bg-gray-50" style={{ backgroundColor: color || '#FFFFFF' }}>
+      <div style={style} className="w-full">
+        <Card className="w-full hover:shadow-md rounded-lg overflow-hidden border border-gray-200 transition-all duration-200 hover:bg-gray-50" style={{ backgroundColor: color || '#FFFFFF' }}>
           <CardHeader floated={false} shadow={false} className="p-3 sm:p-4 border-b border-gray-200" style={{ backgroundColor: color || '#FFFFFF' }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 max-w-[70%]">
@@ -177,6 +154,51 @@ export function Draggable(props) {
                     }`}>
                       {new Date(deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Add Status Change Menu */}
+              <div className="flex items-center justify-between">
+                <Menu>
+                  <MenuHandler>
+                    <Button 
+                      variant="text" 
+                      size="sm"
+                      className="p-1 text-gray-700 flex items-center gap-1 text-xs"
+                    >
+                      <span>Status: {props.task?.status?.replace('droppable-', '')?.replace('-', ' ')}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </MenuHandler>
+                  <MenuList className="bg-white border-gray-200">
+                    {['to-do', 'pending', 'in-progress', 'done'].map((status) => (
+                      <MenuItem 
+                        key={status}
+                        onClick={() => {
+                          const newStatus = `droppable-${status}`;
+                          if (newStatus === 'droppable-pending' && props.task.status !== 'droppable-pending' && !props.task.pendingReason) {
+                            // Handle pending status - would need a way to set pendingTask and open reason modal
+                            if (props.onStatusChange && props.onPendingChange) {
+                              props.onPendingChange(props.task);
+                            }
+                          } else {
+                            if (props.onStatusChange) {
+                              props.onStatusChange(props.task.id, newStatus);
+                            }
+                          }
+                        }}
+                        className="text-gray-700 hover:bg-gray-50 capitalize"
+                      >
+                        {status.replace('-', ' ')}
+                      </MenuItem>
+                    ))}
+                  </MenuList>
+                </Menu>
+                
+                {timeEstimate && timeSpent && (
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <span>{Math.min(Math.round((timeSpent / timeEstimate) * 100), 100)}%</span>
                   </div>
                 )}
               </div>
@@ -405,14 +427,11 @@ export function Draggable(props) {
                 <Typography variant="h6" className="font-medium text-gray-700">
                   Current Progress: {progress}%
                 </Typography>
-                <motion.div
+                <div
                   className="text-sm font-medium"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  key={progress}
                 >
                   {timeSpent}h / {timeEstimate}h
-                </motion.div>
+                </div>
               </div>
               
               <div className="py-4">
@@ -431,10 +450,8 @@ export function Draggable(props) {
                 />
               </div>
 
-              <motion.div
+              <div
                 className="bg-gray-50 p-4 rounded-lg"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
               >
                 <div className="flex justify-between items-center mb-2">
                   <Typography variant="small" className="text-gray-600">Time Tracking</Typography>
@@ -443,30 +460,19 @@ export function Draggable(props) {
                   </Typography>
                 </div>
                 <div className="relative h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <motion.div
+                  <div
                     className="absolute h-full bg-blue-500 rounded-full"
                     style={{ width: `${(timeSpent / timeEstimate) * 100}%` }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${(timeSpent / timeEstimate) * 100}%` }}
-                    transition={{ duration: 0.5 }}
                   >
-                    <motion.div
+                    <div
                       className="absolute inset-0"
-                      animate={{
-                        x: ["-100%", "100%"],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: "linear",
-                      }}
                       style={{
                         background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)"
                       }}
                     />
-                  </motion.div>
+                  </div>
                 </div>
-              </motion.div>
+              </div>
             </div>
           </DialogBody>
           <DialogFooter className="bg-gray-50 rounded-b-lg p-4 flex justify-end gap-3 border-t border-gray-200">
@@ -495,11 +501,7 @@ export function Draggable(props) {
 }
 
 // Droppable Component
-export function Droppable(props) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: props.id || 'droppable',
-  });
-
+export function TaskDroppable(props) {
   const baseStyles = `
     flex
     flex-col
@@ -509,7 +511,7 @@ export function Droppable(props) {
     bg-white/50
     backdrop-blur-sm
     border-2
-    ${isOver ? 'border-gray-400 border-dashed bg-gray-50/80' : 'border-gray-200 border-dashed'}
+    border-gray-200 border-dashed
     rounded-lg
     p-4
     transition-all
@@ -520,37 +522,14 @@ export function Droppable(props) {
   `;
 
   return (
-    <div ref={setNodeRef} className={`${baseStyles}`}>
-      {/* Visual indicator for drop zone */}
-      <div className={`
-        absolute 
-        inset-0 
-        pointer-events-none 
-        transition-opacity 
-        duration-300
-        ${isOver ? 'opacity-100' : 'opacity-0'}
-        bg-gradient-to-b 
-        from-gray-100/50 
-        to-transparent
-      `} />
-      
+    <div className={`${baseStyles}`}>      
       {/* Content */}
       <div className="relative z-10 w-full h-full space-y-4">
         {props.children}
         
         {/* Empty state indicator */}
         {!props.children?.props?.children?.length && (
-          <div className={`
-            flex 
-            flex-col 
-            items-center 
-            justify-center 
-            h-32
-            text-gray-400 
-            transition-opacity 
-            duration-300
-            ${isOver ? 'opacity-0' : 'opacity-100'}
-          `}>
+          <div className="flex flex-col items-center justify-center h-32 text-gray-400 transition-opacity duration-300">
             <svg
               className="w-8 h-8 mb-2 stroke-current"
               fill="none"
@@ -564,7 +543,7 @@ export function Droppable(props) {
                 d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            <span className="text-sm font-medium">Drop tasks here</span>
+            <span className="text-sm font-medium">No tasks</span>
           </div>
         )}
       </div>
@@ -1126,44 +1105,6 @@ const Task = () => {
     }
   };
 
-  const handleDragEnd = (event) => {
-    if (!event.over) {
-      // If dropped outside a valid drop zone, do nothing and let the task return to its original position
-      return;
-    }
-
-    const droppedColumn = event.over.id;
-    const draggedTaskId = event.active.id;
-    const taskToMove = tasks.find((task) => task.id === draggedTaskId);
-
-    if (!taskToMove) return;
-
-    if (droppedColumn === 'droppable-pending') {
-      if (taskToMove.status !== 'droppable-pending' && !taskToMove.pendingReason) {
-        setPendingTask(taskToMove);
-        setPendingReason('');
-        setPendingProof(null);
-        setOpenReasonModal(true);
-      } else {
-        setTasks((prev) =>
-          prev.map((task) =>
-            task.id === draggedTaskId
-              ? { ...task, status: droppedColumn }
-              : task
-          )
-        );
-      }
-    } else {
-      setTasks((prev) =>
-        prev.map((task) =>
-          task.id === draggedTaskId
-            ? { ...task, status: droppedColumn }
-            : task
-        )
-      );
-    }
-  };
-
   const handleSavePendingReason = () => {
     if (!pendingReason.trim()) {
       alert('Please provide a reason for pending status');
@@ -1211,13 +1152,6 @@ const Task = () => {
       }));
       setNewTag('');
     }
-  };
-
-  const handleRemoveTag = (tagToRemove) => {
-    setNewTask(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
   };
 
   const handleAddComment = () => {
@@ -1483,24 +1417,25 @@ const Task = () => {
                             </Button>
                           </MenuHandler>
                           <MenuList className="bg-white border-gray-200">
-                            {['droppable-to-do', 'droppable-pending', 'droppable-in-progress', 'droppable-done'].map((status) => (
+                            {['to-do', 'pending', 'in-progress', 'done'].map((status) => (
                               <MenuItem 
                                 key={status}
                                 onClick={() => {
-                                  if (status === 'droppable-pending' && task.status !== 'droppable-pending' && !task.pendingReason) {
+                                  const newStatus = `droppable-${status}`;
+                                  if (newStatus === 'droppable-pending' && task.status !== 'droppable-pending' && !task.pendingReason) {
                                     setPendingTask(task);
                                     setPendingReason('');
                                     setPendingProof(null);
                                     setOpenReasonModal(true);
                                   } else {
                                     setTasks(prev => prev.map(t => 
-                                      t.id === task.id ? { ...t, status } : t
+                                      t.id === task.id ? { ...t, status: newStatus } : t
                                     ));
                                   }
                                 }}
                                 className="text-gray-700 hover:bg-gray-50 capitalize"
                               >
-                                {status.replace('droppable-', '').replace('-', ' ')}
+                                {status.replace('-', ' ')}
                               </MenuItem>
                             ))}
                           </MenuList>
@@ -1538,54 +1473,65 @@ const Task = () => {
             </div>
           </div>
         ) : (
-          /* Kanban Board View */
-          <DndContext onDragEnd={handleDragEnd}>
-            <div className="max-w-7xl mx-auto">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                {['To Do', 'Pending', 'In Progress', 'Done'].map((status, index) => {
-                  const columnId = `droppable-${status.toLowerCase().replace(' ', '-')}`;
-                  return (
-                    <div key={index} className="w-full">
-                      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                        <div className="bg-gray-50 p-3 sm:p-4 border-b border-gray-200">
-                          <Typography variant="h6" className="font-medium text-gray-700 flex items-center">
-                            {status}
-                            <span className="ml-2 text-sm text-gray-400">
-                              {filteredTasks.filter(task => task.status === columnId).length}
-                            </span>
-                          </Typography>
-                        </div>
-                        <div className="p-3 sm:p-4">
-                          <Droppable id={columnId}>
-                            <div className="space-y-3 sm:space-y-4">
-                              {filteredTasks
-                                .filter(task => task.status === columnId)
-                                .map(task => (
-                                  <Draggable 
-                                    key={task.id} 
-                                    id={task.id} 
-                                    task={task} 
-                                    onDelete={() => handleOpenDeleteModal(task)}
-                                    onViewTask={(task) => setViewTaskModal(task)}
-                                    onUpdateProgress={(taskId, newTimeSpent) => {
-                                      setTasks(prev => prev.map(task =>
-                                        task.id === taskId 
-                                          ? { ...task, timeSpent: newTimeSpent }
-                                          : task
-                                      ));
-                                    }}
-                                  />
-                                ))}
-                            </div>
-                          </Droppable>
-                        </div>
+          /* Kanban Board View - Non-draggable */
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {['To Do', 'Pending', 'In Progress', 'Done'].map((status, index) => {
+                const columnId = `droppable-${status.toLowerCase().replace(' ', '-')}`;
+                return (
+                  <div key={index} className="w-full">
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="bg-gray-50 p-3 sm:p-4 border-b border-gray-200">
+                        <Typography variant="h6" className="font-medium text-gray-700 flex items-center">
+                          {status}
+                          <span className="ml-2 text-sm text-gray-400">
+                            {filteredTasks.filter(task => task.status === columnId).length}
+                          </span>
+                        </Typography>
+                      </div>
+                      <div className="p-3 sm:p-4">
+                        <TaskDroppable id={columnId}>
+                          <div className="space-y-3 sm:space-y-4">
+                            {filteredTasks
+                              .filter(task => task.status === columnId)
+                              .map(task => (
+                                <TaskDraggable 
+                                  key={task.id} 
+                                  id={task.id} 
+                                  task={task} 
+                                  onDelete={() => handleOpenDeleteModal(task)}
+                                  onViewTask={(task) => setViewTaskModal(task)}
+                                  onUpdateProgress={(taskId, newTimeSpent) => {
+                                    setTasks(prev => prev.map(task =>
+                                      task.id === taskId 
+                                        ? { ...task, timeSpent: newTimeSpent }
+                                        : task
+                                    ));
+                                  }}
+                                  onStatusChange={(taskId, newStatus) => {
+                                    setTasks(prev => prev.map(task =>
+                                      task.id === taskId 
+                                        ? { ...task, status: newStatus }
+                                        : task
+                                    ));
+                                  }}
+                                  onPendingChange={(task) => {
+                                    setPendingTask(task);
+                                    setPendingReason('');
+                                    setPendingProof(null);
+                                    setOpenReasonModal(true);
+                                  }}
+                                />
+                              ))}
+                          </div>
+                        </TaskDroppable>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          </DndContext>
+          </div>
         )}
       </div>
 
